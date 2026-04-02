@@ -1,10 +1,11 @@
-import "./tasks/LocationTask"; 
+import "./tasks/LocationTask";
 
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, Platform } from 'react-native';
 import React, { useEffect } from 'react';
 import * as Location from "expo-location";
 import { LOCATION_TASK } from "./tasks/LocationTask";
+import { socket } from "./tasks/utils";
 
 export const startBackgroundLocation = async () => {
   const fg = await Location.requestForegroundPermissionsAsync();
@@ -39,7 +40,13 @@ export const startBackgroundLocation = async () => {
 
 export default function App() {
   useEffect(() => {
-    startBackgroundLocation();
+    // if (socket) {
+    //   console.log("Websocket connected");
+    //   socket.emit("connect", {"topic" : "s1-r1-pick","driver_id": "darshan"});
+      startBackgroundLocation();
+    // } else {
+    //   console.log("Websocket connection failed");
+    // }
   }, []);
 
   return (
