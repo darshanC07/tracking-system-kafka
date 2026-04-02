@@ -1,0 +1,2 @@
+This is my experimental project using Kafka, and to make it a real-world use case, I am implementing it for ride tracking with real-time monitoring from the admin portal.
+My aim behind working on this is to get hands-on experience with Kafka architecture, producers implementation in different techs, along with consumers and topic-partition distribution.
