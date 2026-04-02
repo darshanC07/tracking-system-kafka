@@ -1,10 +1,50 @@
+import "./tasks/LocationTask"; 
+
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, Platform } from 'react-native';
+import React, { useEffect } from 'react';
+import * as Location from "expo-location";
+import { LOCATION_TASK } from "./tasks/LocationTask";
+
+export const startBackgroundLocation = async () => {
+  const fg = await Location.requestForegroundPermissionsAsync();
+  if (!fg.granted) return;
+
+  const bg = await Location.requestBackgroundPermissionsAsync();
+  if (!bg.granted) return;
+
+  const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK);
+
+  if (hasStarted) {
+    await Location.stopLocationUpdatesAsync(LOCATION_TASK);
+  }
+
+  await Location.startLocationUpdatesAsync(LOCATION_TASK, {
+    accuracy: Location.Accuracy.Balanced,
+    timeInterval: 6000,
+    distanceInterval: 10,
+    pausesUpdatesAutomatically: false,
+    activityType:
+      Platform.OS === "android"
+        ? Location.LocationActivityType.OtherNavigation
+        : undefined,
+    foregroundService: {
+      notificationTitle: "Location Tracking",
+      notificationBody: "Tracking your location in background",
+    },
+  });
+
+  console.log("Tracking started");
+};
 
 export default function App() {
+  useEffect(() => {
+    startBackgroundLocation();
+  }, []);
+
   return (
     <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
+      <Text>Tracking...</Text>
       <StatusBar style="auto" />
     </View>
   );
