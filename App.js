@@ -1,11 +1,15 @@
 import "./tasks/LocationTask";
 
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, Platform } from 'react-native';
-import React, { useEffect } from 'react';
+import { StyleSheet, Text, View, Platform, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
 import * as Location from "expo-location";
 import { LOCATION_TASK } from "./tasks/LocationTask";
-import { socket } from "./tasks/utils";
+
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
+import NewRide from "./NewRide";
+import ActiveRide from "./ActiveRide";
 
 export const startBackgroundLocation = async () => {
   const fg = await Location.requestForegroundPermissionsAsync();
@@ -43,25 +47,20 @@ export default function App() {
     // if (socket) {
     //   console.log("Websocket connected");
     //   socket.emit("connect", {"topic" : "s1-r1-pick","driver_id": "darshan"});
-      startBackgroundLocation();
+      // startBackgroundLocation();
     // } else {
     //   console.log("Websocket connection failed");
     // }
   }, []);
 
+  const Stack = createNativeStackNavigator();
+  
   return (
-    <View style={styles.container}>
-      <Text>Tracking...</Text>
-      <StatusBar style="auto" />
-    </View>
+    <NavigationContainer>
+      <Stack.Navigator initialRouteName="NewRide">
+      <Stack.Screen name="NewRide" component={NewRide} options={{headerShown : false}}/>
+      <Stack.Screen name="ActiveRide" component={ActiveRide} options={{headerShown : false}} />
+    </Stack.Navigator>
+    </NavigationContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

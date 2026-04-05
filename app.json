@@ -39,7 +39,12 @@
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_LOCATION",
         "RECEIVE_BOOT_COMPLETED"
-      ]
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDvSScst0iYdH7cs25OPhg8ZLaesfedxY8"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
