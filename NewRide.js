@@ -7,9 +7,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { createAsyncStorage } from "@react-native-async-storage/async-storage";
+import { startBackgroundLocation } from "./App";
+import { io } from "socket.io-client";
+import {setSocket,getSocket} from "./tasks/utils";
 
 const COLORS = {
   primary: "#5B6EF5",
@@ -20,12 +24,57 @@ const COLORS = {
   border: "#E5E7EB",
 };
 
+let new_socket = "";
 const NewRide = () => {
+  const AsyncStorage = createAsyncStorage("kafkaStorage");
+
   const navigation = useNavigation();
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [name, setName] = useState("");
   const [school, setSchool] = useState("");
-  const [rideType, setRideType] = useState("pickup");
+  const [rideType, setRideType] = useState("pick");
+
+  const navigator = async () => {
+    const isActiveRide = await AsyncStorage.getItem("isActiveRide");
+    if (isActiveRide === "true") {
+      const {school,name,rideType} = await AsyncStorage.getItem("activeRideData");
+      if (!school || !name || !rideType) {
+        console.log("No active ride data found. Navigating to NewRide.");
+        return;
+      }
+
+      const topic_name = `${school.slice(0, 2)}-${name.slice(0, 2)}-${rideType}`;
+      console.log("Connecting to websocket with topic:", topic_name);
+      new_socket = io("https://tracking-system-kafka-backend-production.up.railway.app/", {
+        transports: ["websocket"],
+        auth: {
+          topic: topic_name,
+          driver_id: name,
+          type: "producer"
+        }
+      });
+
+      if (new_socket) {
+        socket = new_socket; 
+        console.log("Websocket connected in startRide");
+
+      } else {
+        console.log("Websocket connection failed in startRide");
+        alert("Failed to connect to server. Please try again.");
+        return;
+      }
+      
+      startBackgroundLocation();
+      navigation.replace("ActiveRide");
+    }
+  }
+  useEffect(() => {
+    try {
+      navigator();
+    } catch (e) {
+      console.log("Error checking active ride status:", e);
+    }
+  }, [])
 
   const vehicles = [
     {
@@ -55,6 +104,51 @@ const NewRide = () => {
     },
   ];
 
+  const startRide = async () => {
+    if (!name || !school || !selectedVehicle) {
+      alert("Please fill all fields and select a vehicle");
+      return;
+    }
+
+    const rideData = {
+      name,
+      school,
+      rideType,
+      vehicle: selectedVehicle,
+      timestamp: new Date().toISOString(),
+    };
+
+    try {
+      await AsyncStorage.setItem("isActiveRide", "true");
+      await AsyncStorage.setItem("activeRideData", JSON.stringify(rideData));
+
+      const topic_name = `${school.slice(0, 2)}-${name.slice(0, 2)}-${rideType}`;
+      console.log("Connecting to websocket with topic:", topic_name);
+      new_socket = io("https://tracking-system-kafka-backend-production.up.railway.app/", {
+        transports: ["websocket"],
+        auth: {
+          topic: topic_name,
+          driver_id: name,
+          type: "producer"
+        }
+      });
+
+      if (new_socket) {
+        setSocket(new_socket);
+        console.log("Websocket connected in startRide");
+      } else {
+        console.log("Websocket connection failed in startRide");
+        alert("Failed to connect to server. Please try again.");
+        return;
+      }
+      
+      startBackgroundLocation();
+      navigation.replace("ActiveRide");
+    } catch (e) {
+      console.log("Error starting ride:", e);
+    }
+  };
+
   return (
     <SafeAreaProvider>
       <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
@@ -80,7 +174,7 @@ const NewRide = () => {
 
               <View style={styles.inputContainer}>
                 <Text>School Name</Text>
-                <TextInput style={styles.input} placeholder="Enter school name" value={school} onChangeText={setSchool} placeholderTextColor='grey'/>
+                <TextInput style={styles.input} placeholder="Enter school name" value={school} onChangeText={setSchool} placeholderTextColor='grey' />
               </View>
 
               <View style={styles.inputContainer}>
@@ -89,14 +183,14 @@ const NewRide = () => {
                   <TouchableOpacity
                     style={[
                       styles.typeButton,
-                      rideType === "pickup" && styles.typeButtonActive,
+                      rideType === "pick" && styles.typeButtonActive,
                     ]}
-                    onPress={() => setRideType("pickup")}
+                    onPress={() => setRideType("pick")}
                   >
                     <Text
                       style={[
                         styles.typeText,
-                        rideType === "pickup" && styles.typeTextActive,
+                        rideType === "pick" && styles.typeTextActive,
                       ]}
                     >
                       Pick Up
@@ -159,7 +253,7 @@ const NewRide = () => {
         <View style={styles.footer}>
           <TouchableOpacity
             style={styles.startButton}
-            onPress={() => navigation.navigate("ActiveRide")}
+            onPress={startRide}
           >
             <Text style={styles.startButtonText}>Start Ride</Text>
           </TouchableOpacity>

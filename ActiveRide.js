@@ -11,14 +11,22 @@ import React, { useEffect, useRef } from "react";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 import * as Location from "expo-location";
+import { useNavigation } from "@react-navigation/native";
+import { createAsyncStorage } from "@react-native-async-storage/async-storage";
+// import { getSocket } from "./tasks/utils";
 
 const ActiveRide = () => {
+  // const socket = getSocket();
+
   const initialLocation = {
     latitude: 0,
     longitude: 0,
     latitudeDelta: 0.0922,
     longitudeDelta: 0.0421,
   };
+  
+  const navigation = useNavigation();
+  const AsyncStorage = createAsyncStorage("kafkaStorage");
 
   const mapRef = useRef(null);
 
@@ -86,6 +94,23 @@ const ActiveRide = () => {
     })();
   }, []);
 
+  const endRide = async () => {
+    try {
+      // const { school,name,rideType } = await AsyncStorage.getItem("activeRideData")
+      // console.log("Ending ride with topic:", school, name, rideType);
+      // const topic = `${school.slice(0,2)}_${name.slice(0,2)}_${rideType}`;
+      // socket.emit("endRide", { "topic" : topic });
+
+      await AsyncStorage.removeItem("isActiveRide");
+      await AsyncStorage.removeItem("activeRideData");
+ 
+      alert("Ride ended successfully!");
+      navigation.replace("NewRide");
+    } catch (e) {
+      console.log("Error ending ride:", e);
+    }
+  };
+
   return (
     <SafeAreaProvider>
       <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
@@ -151,7 +176,7 @@ const ActiveRide = () => {
             </View>
 
           </View>
-          <TouchableOpacity style={styles.button}>
+          <TouchableOpacity style={styles.button} onPress={endRide}>
             <Text style={styles.buttonText}>End Ride</Text>
           </TouchableOpacity>
         </Animated.View>
