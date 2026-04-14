@@ -10,10 +10,12 @@ import {
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { createAsyncStorage } from "@react-native-async-storage/async-storage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { startBackgroundLocation } from "./App";
 import { io } from "socket.io-client";
-import {setSocket,getSocket} from "./tasks/utils";
+import { setSocket, getSocket } from "./tasks/utils";
+import * as Location from "expo-location";
+import config from "./config.json";
 
 const COLORS = {
   primary: "#5B6EF5",
@@ -24,9 +26,8 @@ const COLORS = {
   border: "#E5E7EB",
 };
 
-let new_socket = "";
+let new_socket = null;
 const NewRide = () => {
-  const AsyncStorage = createAsyncStorage("kafkaStorage");
 
   const navigation = useNavigation();
   const [selectedVehicle, setSelectedVehicle] = useState(null);
@@ -37,35 +38,51 @@ const NewRide = () => {
   const navigator = async () => {
     const isActiveRide = await AsyncStorage.getItem("isActiveRide");
     if (isActiveRide === "true") {
-      const {school,name,rideType} = await AsyncStorage.getItem("activeRideData");
+      const activeRideStr = await AsyncStorage.getItem("activeRideData");
+      const { school, name, rideType } = activeRideStr ? JSON.parse(activeRideStr) : {};
       if (!school || !name || !rideType) {
         console.log("No active ride data found. Navigating to NewRide.");
         return;
       }
-
       const topic_name = `${school.slice(0, 2)}-${name.slice(0, 2)}-${rideType}`;
       console.log("Connecting to websocket with topic:", topic_name);
-      new_socket = io("https://tracking-system-kafka-backend-production.up.railway.app/", {
-        transports: ["websocket"],
-        auth: {
-          topic: topic_name,
-          driver_id: name,
-          type: "producer"
-        }
-      });
 
-      if (new_socket) {
-        socket = new_socket; 
-        console.log("Websocket connected in startRide");
+      const wsUrl = `${config.serverUrl.replace("http", "ws")}/ws?topic=${topic_name}&client_type=producer`;
 
+      new_socket = new WebSocket(wsUrl);
+
+      new_socket.onopen = () => {
+        console.log("WebSocket connected");
+        setSocket(new_socket);
+
+        startBackgroundLocation();
+        navigation.replace("ActiveRide");
+      };
+
+      new_socket.onerror = (err) => {
+        console.log("WebSocket error:", err);
+        alert("Connection failed");
+      };
+
+      new_socket.onclose = () => {
+        console.log("WebSocket closed");
+      };
+    } else {
+      console.log("checking if location permission is granted");
+      const fg = await Location.requestForegroundPermissionsAsync();
+      if (fg.granted) {
+        console.log("Location permission granted");
       } else {
-        console.log("Websocket connection failed in startRide");
-        alert("Failed to connect to server. Please try again.");
-        return;
+        console.log("Location permission denied");
       }
-      
-      startBackgroundLocation();
-      navigation.replace("ActiveRide");
+
+      const bg = await Location.requestBackgroundPermissionsAsync();
+      if (bg.granted) {
+        console.log("Background location permission granted");
+      } else {
+        console.log("Background location permission denied");
+      }
+
     }
   }
   useEffect(() => {
@@ -124,26 +141,27 @@ const NewRide = () => {
 
       const topic_name = `${school.slice(0, 2)}-${name.slice(0, 2)}-${rideType}`;
       console.log("Connecting to websocket with topic:", topic_name);
-      new_socket = io("https://tracking-system-kafka-backend-production.up.railway.app/", {
-        transports: ["websocket"],
-        auth: {
-          topic: topic_name,
-          driver_id: name,
-          type: "producer"
-        }
-      });
 
-      if (new_socket) {
+      const wsUrl = `${config.serverUrl.replace("http", "ws")}/ws?topic=${topic_name}&client_type=producer`;
+
+      new_socket = new WebSocket(wsUrl);
+
+      new_socket.onopen = () => {
+        console.log("WebSocket connected");
         setSocket(new_socket);
-        console.log("Websocket connected in startRide");
-      } else {
-        console.log("Websocket connection failed in startRide");
-        alert("Failed to connect to server. Please try again.");
-        return;
-      }
-      
-      startBackgroundLocation();
-      navigation.replace("ActiveRide");
+
+        startBackgroundLocation();
+        navigation.replace("ActiveRide");
+      };
+
+      new_socket.onerror = (err) => {
+        console.log("WebSocket error:", err);
+        alert("Connection failed");
+      };
+
+      new_socket.onclose = () => {
+        console.log("WebSocket closed");
+      };
     } catch (e) {
       console.log("Error starting ride:", e);
     }

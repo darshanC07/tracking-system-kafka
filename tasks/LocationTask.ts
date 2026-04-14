@@ -1,6 +1,7 @@
 import * as TaskManager from "expo-task-manager";
-import { createAsyncStorage } from "@react-native-async-storage/async-storage";
-import {getSocket} from "./utils";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getSocket } from "./utils";
+import config from "../config.json";
 
 // export const produce = (topic, message) => {
 //     socket.emit(topic, message);
@@ -15,11 +16,10 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }: any) => {
     return;
   }
 
-  const AsyncStorage = createAsyncStorage("kafkaStorage");
 
   const isActiveRide = await AsyncStorage.getItem("isActiveRide");
   console.log("Is active ride:", isActiveRide);
-  if (isActiveRide === "false" || isActiveRide === null) {
+  if (isActiveRide !== "true") {
     console.log("No active ride. Skipping location update.");
     return;
   }
@@ -34,18 +34,32 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }: any) => {
   }
   console.log("Active ride data:", rideData);
 
-  const { name, school,rideType } = JSON.parse(rideData);
+  const { name, school, rideType } = JSON.parse(rideData);
 
   const { latitude, longitude } = data.locations[0].coords;
 
-  const topic = `${school.slice(0,2)}-${name.slice(0,2)}-${rideType}`;
+  const topic = `${school.slice(0, 2)}-${name.slice(0, 2)}-${rideType}`;
   console.log("Constructed topic:", topic);
   console.log("Background location:", latitude, longitude);
   const socket = getSocket();
+
   if (!socket) {
-    console.log("Websocket not connected. Cannot send location update.");
+    console.log("WebSocket not available");
     return;
   }
 
-  socket.emit("loc_update-producer", { "loc": { "lat": latitude, "long": longitude }, "topic": topic, "driver_id": name, "school": school });
+  // 1 = OPEN
+  if (socket.readyState !== 1) {
+    console.log("WebSocket not open. Cannot send.");
+    return;
+  }
+
+  socket.send(JSON.stringify({
+    topic: topic,
+    loc: { lat: latitude, long: longitude },
+    driver_id: name,
+    school: school
+  }));
+
+  console.log("Location sent via WebSocket");
 });

@@ -12,7 +12,7 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 import * as Location from "expo-location";
 import { useNavigation } from "@react-navigation/native";
-import { createAsyncStorage } from "@react-native-async-storage/async-storage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 // import { getSocket } from "./tasks/utils";
 
 const ActiveRide = () => {
@@ -26,7 +26,6 @@ const ActiveRide = () => {
   };
   
   const navigation = useNavigation();
-  const AsyncStorage = createAsyncStorage("kafkaStorage");
 
   const mapRef = useRef(null);
 
