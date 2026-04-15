@@ -1,7 +1,7 @@
 {
-    "deployedServerUrl" : "https://tracking-system-kafka-backend-production-b199.up.railway.app",
+    "deployedServerUrl" : "https://tracking-system-kafka-backend-production.up.railway.app",
     "localPortServerUrl" : "https://30vkdstn-5000.inc1.devtunnels.ms",
     "localServerUrl" : "http://192.168.0.193:5000",
     "renderServerUrl" : "https://tracking-system-kafka-backend.onrender.com",
-    "serverUrl" : "https://tracking-system-kafka-backend-production-b199.up.railway.app"
+    "serverUrl" : "https://tracking-system-kafka-backend.onrender.com"
 }

@@ -6,13 +6,13 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { startBackgroundLocation } from "./App";
-import { io } from "socket.io-client";
 import { setSocket, getSocket } from "./tasks/utils";
 import * as Location from "expo-location";
 import config from "./config.json";
@@ -34,56 +34,68 @@ const NewRide = () => {
   const [name, setName] = useState("");
   const [school, setSchool] = useState("");
   const [rideType, setRideType] = useState("pick");
+  const [loading, setLoading] = useState(false);
+
 
   const navigator = async () => {
-    const isActiveRide = await AsyncStorage.getItem("isActiveRide");
-    if (isActiveRide === "true") {
-      const activeRideStr = await AsyncStorage.getItem("activeRideData");
-      const { school, name, rideType } = activeRideStr ? JSON.parse(activeRideStr) : {};
-      if (!school || !name || !rideType) {
-        console.log("No active ride data found. Navigating to NewRide.");
-        return;
-      }
-      const topic_name = `${school.slice(0, 2)}-${name.slice(0, 2)}-${rideType}`;
-      console.log("Connecting to websocket with topic:", topic_name);
+    try {
+      setLoading(true);
+      const isActiveRide = await AsyncStorage.getItem("isActiveRide");
+      console.log("Active ride status:", isActiveRide);
+      if (isActiveRide === "true") {
+        const activeRideStr = await AsyncStorage.getItem("activeRideData");
+        const { school, name, rideType } = activeRideStr ? JSON.parse(activeRideStr) : {};
+        if (!school || !name || !rideType) {
+          console.log("No active ride data found. Navigating to NewRide.");
+          return;
+        }
+        const topic_name = `${school.slice(0, 2)}-${name.slice(0, 2)}-${rideType}`;
+        console.log("Connecting to websocket with topic:", topic_name);
 
-      const wsUrl = `${config.serverUrl.replace("http", "ws")}/ws?topic=${topic_name}&client_type=producer`;
+        const wsUrl = `${config.serverUrl.replace("http", "ws")}/ws?topic=${topic_name}&group_id=producer&offset=earliest&client_type=producer`;
 
-      new_socket = new WebSocket(wsUrl);
+        new_socket = new WebSocket(wsUrl);
 
-      new_socket.onopen = () => {
-        console.log("WebSocket connected");
-        setSocket(new_socket);
+        new_socket.onopen = () => {
+          setLoading(false);
+          console.log("WebSocket connected");
+          setSocket(new_socket);
 
-        startBackgroundLocation();
-        navigation.replace("ActiveRide");
-      };
+          startBackgroundLocation();
+          navigation.replace("ActiveRide");
+        };
 
-      new_socket.onerror = (err) => {
-        console.log("WebSocket error:", err);
-        alert("Connection failed");
-      };
+        new_socket.onerror = (err) => {
+          setLoading(false);
+          console.log("WebSocket error:", err);
+          alert("Connection failed");
+        };
 
-      new_socket.onclose = () => {
-        console.log("WebSocket closed");
-      };
-    } else {
-      console.log("checking if location permission is granted");
-      const fg = await Location.requestForegroundPermissionsAsync();
-      if (fg.granted) {
-        console.log("Location permission granted");
+        new_socket.onclose = () => {
+          setLoading(false);
+          console.log("WebSocket closed");
+        };
       } else {
-        console.log("Location permission denied");
-      }
+        setLoading(false);
+        console.log("checking if location permission is granted");
+        const fg = await Location.requestForegroundPermissionsAsync();
+        if (fg.granted) {
+          console.log("Location permission granted");
+        } else {
+          console.log("Location permission denied");
+        }
 
-      const bg = await Location.requestBackgroundPermissionsAsync();
-      if (bg.granted) {
-        console.log("Background location permission granted");
-      } else {
-        console.log("Background location permission denied");
-      }
+        const bg = await Location.requestBackgroundPermissionsAsync();
+        if (bg.granted) {
+          console.log("Background location permission granted");
+        } else {
+          console.log("Background location permission denied");
+        }
 
-    }
+      }
+    } catch (e) {
+      console.log("Error in navigator function:", e);
+    } 
   }
   useEffect(() => {
     try {
@@ -136,17 +148,19 @@ const NewRide = () => {
     };
 
     try {
+      setLoading(true);
       await AsyncStorage.setItem("isActiveRide", "true");
       await AsyncStorage.setItem("activeRideData", JSON.stringify(rideData));
 
       const topic_name = `${school.slice(0, 2)}-${name.slice(0, 2)}-${rideType}`;
       console.log("Connecting to websocket with topic:", topic_name);
 
-      const wsUrl = `${config.serverUrl.replace("http", "ws")}/ws?topic=${topic_name}&client_type=producer`;
+      const wsUrl = `${config.serverUrl.replace("http", "ws")}/ws?topic=${topic_name}&group_id=producer&offset=none&client_type=producer`;
 
       new_socket = new WebSocket(wsUrl);
 
       new_socket.onopen = () => {
+        setLoading(false);
         console.log("WebSocket connected");
         setSocket(new_socket);
 
@@ -155,11 +169,13 @@ const NewRide = () => {
       };
 
       new_socket.onerror = (err) => {
+        setLoading(false);
         console.log("WebSocket error:", err);
         alert("Connection failed");
       };
 
       new_socket.onclose = () => {
+        setLoading(false);
         console.log("WebSocket closed");
       };
     } catch (e) {
@@ -168,117 +184,124 @@ const NewRide = () => {
   };
 
   return (
-    <SafeAreaProvider>
-      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
-
-        <View style={styles.header}>
-          <Text style={styles.headerText}>Track Kafka</Text>
+    <>
+      {loading && (
+        <View style={styles.loaderOverlay}>
+          <ActivityIndicator size="large" color="#4560F4" />
         </View>
+      )}
+      <SafeAreaProvider>
+        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
 
-        <View style={styles.container}>
-          <Text style={styles.title}>Start a New Ride</Text>
+          <View style={styles.header}>
+            <Text style={styles.headerText}>Track Kafka</Text>
+          </View>
 
-          <ScrollView
-            style={{ width: "100%", marginTop: 10 }}
-            contentContainerStyle={{ paddingBottom: 100 }}
-            showsVerticalScrollIndicator={false}
-          >
-            <View style={styles.form}>
+          <View style={styles.container}>
+            <Text style={styles.title}>Start a New Ride</Text>
 
-              <View style={styles.inputContainer}>
-                <Text>Name</Text>
-                <TextInput style={styles.input} placeholder="Enter your name" value={name} onChangeText={setName} placeholderTextColor='grey' />
-              </View>
+            <ScrollView
+              style={{ width: "100%", marginTop: 10 }}
+              contentContainerStyle={{ paddingBottom: 100 }}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.form}>
 
-              <View style={styles.inputContainer}>
-                <Text>School Name</Text>
-                <TextInput style={styles.input} placeholder="Enter school name" value={school} onChangeText={setSchool} placeholderTextColor='grey' />
-              </View>
+                <View style={styles.inputContainer}>
+                  <Text>Name</Text>
+                  <TextInput style={styles.input} placeholder="Enter your name" value={name} onChangeText={setName} placeholderTextColor='grey' />
+                </View>
 
-              <View style={styles.inputContainer}>
-                <Text>Type</Text>
-                <View style={styles.typeContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.typeButton,
-                      rideType === "pick" && styles.typeButtonActive,
-                    ]}
-                    onPress={() => setRideType("pick")}
-                  >
-                    <Text
+                <View style={styles.inputContainer}>
+                  <Text>School Name</Text>
+                  <TextInput style={styles.input} placeholder="Enter school name" value={school} onChangeText={setSchool} placeholderTextColor='grey' />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text>Type</Text>
+                  <View style={styles.typeContainer}>
+                    <TouchableOpacity
                       style={[
-                        styles.typeText,
-                        rideType === "pick" && styles.typeTextActive,
+                        styles.typeButton,
+                        rideType === "pick" && styles.typeButtonActive,
                       ]}
+                      onPress={() => setRideType("pick")}
                     >
-                      Pick Up
-                    </Text>
-                  </TouchableOpacity>
+                      <Text
+                        style={[
+                          styles.typeText,
+                          rideType === "pick" && styles.typeTextActive,
+                        ]}
+                      >
+                        Pick Up
+                      </Text>
+                    </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[
-                      styles.typeButton,
-                      rideType === "drop" && styles.typeButtonActive,
-                    ]}
-                    onPress={() => setRideType("drop")}
-                  >
-                    <Text
+                    <TouchableOpacity
                       style={[
-                        styles.typeText,
-                        rideType === "drop" && styles.typeTextActive,
+                        styles.typeButton,
+                        rideType === "drop" && styles.typeButtonActive,
                       ]}
+                      onPress={() => setRideType("drop")}
                     >
-                      Drop
-                    </Text>
-                  </TouchableOpacity>
+                      <Text
+                        style={[
+                          styles.typeText,
+                          rideType === "drop" && styles.typeTextActive,
+                        ]}
+                      >
+                        Drop
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <Text style={{ marginTop: 10, fontWeight: "600" }}>Vehicle</Text>
+
+                <View style={styles.vehicleGrid}>
+                  {vehicles.map((v, i) => (
+                    <TouchableOpacity
+                      key={i}
+                      style={styles.vehicleButton}
+                      activeOpacity={0.8}
+                      onPress={() => setSelectedVehicle(v.name)}
+                    >
+                      <View
+                        style={[
+                          styles.vehicleOption,
+                          selectedVehicle === v.name && styles.selectedVehicle,
+                        ]}
+                      >
+                        <Image
+                          source={v.img}
+                          style={{
+                            width: 60,
+                            height: 60,
+                            resizeMode: "contain",
+                          }}
+                        />
+                        <Text style={styles.vehicleTitle}>{v.name}</Text>
+                        <Text style={styles.vehicleDesc}>{v.desc}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
                 </View>
               </View>
+            </ScrollView>
+          </View>
 
-              <Text style={{ marginTop: 10, fontWeight: "600" }}>Vehicle</Text>
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={styles.startButton}
+              onPress={startRide}
+            >
+              <Text style={styles.startButtonText}>Start Ride</Text>
+            </TouchableOpacity>
+          </View>
 
-              <View style={styles.vehicleGrid}>
-                {vehicles.map((v, i) => (
-                  <TouchableOpacity
-                    key={i}
-                    style={styles.vehicleButton}
-                    activeOpacity={0.8}
-                    onPress={() => setSelectedVehicle(v.name)}
-                  >
-                    <View
-                      style={[
-                        styles.vehicleOption,
-                        selectedVehicle === v.name && styles.selectedVehicle,
-                      ]}
-                    >
-                      <Image
-                        source={v.img}
-                        style={{
-                          width: 60,
-                          height: 60,
-                          resizeMode: "contain",
-                        }}
-                      />
-                      <Text style={styles.vehicleTitle}>{v.name}</Text>
-                      <Text style={styles.vehicleDesc}>{v.desc}</Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          </ScrollView>
-        </View>
-
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={styles.startButton}
-            onPress={startRide}
-          >
-            <Text style={styles.startButtonText}>Start Ride</Text>
-          </TouchableOpacity>
-        </View>
-
-      </SafeAreaView>
-    </SafeAreaProvider>
+        </SafeAreaView>
+      </SafeAreaProvider>
+    </>
   );
 };
 
@@ -324,7 +347,17 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     elevation: 3,
   },
-
+  loaderOverlay: {
+    position: "absolute",
+    zIndex: 10,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255,255,255,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   inputContainer: {
     marginBottom: 14,
   },
