@@ -46,13 +46,13 @@ The project supports monitoring via an external admin dashboard. You can use Con
 
 Monitoring steps (typical)
 
-1. Open the admin dashboard in a browser using the URL - `https://tracking-system-kafka-backend.onrender.com/admin`.
+1. Open the admin dashboard in a browser using the URL - [https://tracking-system-kafka-backend.onrender.com/admin](https://tracking-system-kafka-backend.onrender.com/admin)
 2. Select topic which you want to monitor.
 3. For group-id, you can either enter any group id or you can opt for random.
 4. Offset refers to how you want to consume events from kafka topic
    - latest - consumes only the latest event 
    - earliest - consumes events from start
-
+5. To start ride, you need driver app which can be downloaded from [releases](https://github.com/darshanC07/tracking-system-kafka/releases/tag/v1)
 
 **Troubleshooting**
 
