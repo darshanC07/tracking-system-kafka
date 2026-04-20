@@ -52,7 +52,7 @@ Monitoring steps (typical)
 4. Offset refers to how you want to consume events from kafka topic
    - latest - consumes only the latest event 
    - earliest - consumes events from start
-5. To start ride, you need driver app which can be downloaded from [releases](https://github.com/darshanC07/tracking-system-kafka/releases/tag/v1)
+5. To start ride, you need driver app which can be downloaded from [releases](https://github.com/darshanC07/tracking-system-kafka/releases/tag/v1.0.2)
 
 **Troubleshooting**
 
